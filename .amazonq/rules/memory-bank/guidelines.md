@@ -3,87 +3,113 @@
 ## Code Quality Standards
 
 ### TypeScript Configuration
-- **Strict Mode**: Always enable strict TypeScript compilation
-- **Type Safety**: Use explicit types for all public interfaces and function parameters
-- **Module System**: Use ES6 imports/exports with CommonJS compilation target
-- **Version**: Maintain TypeScript ~5.9.3 for consistency
+- **Strict Mode**: Always enable strict TypeScript compilation with `strict: true`
+- **Type Safety**: Use explicit typing, avoid `any` types, enable `noImplicitAny`
+- **Null Safety**: Enable `strictNullChecks` for robust null/undefined handling
+- **Module System**: Use `NodeNext` module resolution for modern Node.js compatibility
+- **Target**: Compile to ES2022 for modern JavaScript features
 
-### File Organization Patterns
-- **Entry Points**: Place application entry points in `bin/` directory
-- **Implementation**: Keep stack implementations in `lib/` directory
-- **Configuration**: Store configuration files at project root
-- **Tests**: Organize tests in dedicated `test/` directory
+### Import and Module Patterns
+```typescript
+// AWS SDK v3 - Use specific client imports
+import { S3Client, GetBucketLoggingCommand, PutBucketLoggingCommand } from '@aws-sdk/client-s3';
+import { CloudTrailClient, GetTrailStatusCommand } from '@aws-sdk/client-cloudtrail';
+
+// CDK - Use specific construct imports
+import * as cdk from 'aws-cdk-lib/core';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Construct } from 'constructs';
+```
+
+### Error Handling Standards
+- **Comprehensive Logging**: Always log errors with context using `console.error`
+- **Graceful Degradation**: Handle errors without breaking the entire flow
+- **Specific Error Messages**: Include operation context in error messages
+```typescript
+try {
+  await s3.send(new GetBucketLoggingCommand({ Bucket: bucketName }));
+} catch (error) {
+  console.error('Error handling bucket logging:', error);
+}
+```
+
+## Structural Conventions
+
+### File Organization
+- **Entry Points**: Use `bin/` directory for CDK application entry points with shebang `#!/usr/bin/env node`
+- **Infrastructure**: Place CDK stacks in `lib/` directory with descriptive names
+- **Lambda Functions**: Organize Lambda code in `lib/lambda/` subdirectory
+- **Configuration**: Keep configuration files at project root level
 
 ### Naming Conventions
-- **Files**: Use kebab-case for file names (e.g., `s3-bucket-logging-athena.ts`)
-- **Classes**: Use PascalCase for class names (e.g., `S3BucketLoggingAthenaStack`)
-- **Interfaces**: Use PascalCase with descriptive suffixes (e.g., `S3BucketLoggingAthenaStackProps`)
-- **Variables**: Use camelCase for variables and properties
+- **Files**: Use kebab-case for file names (`s3-bucket-logging-athena-stack.ts`)
+- **Classes**: Use PascalCase for class names (`S3BucketLoggingAthenaStack`)
+- **Interfaces**: Use PascalCase with descriptive suffixes (`S3BucketLoggingAthenaStackProps`)
+- **Constants**: Use UPPER_SNAKE_CASE for environment variables (`LOGGING_BUCKET`, `TAG_KEY`)
+- **Functions**: Use camelCase for function names (`manageCloudTrailLogging`)
 
-## CDK Development Patterns
-
-### Stack Structure
+### CDK Stack Patterns
+- **Props Interface**: Always define a props interface extending `cdk.StackProps`
+- **Optional Parameters**: Use optional properties with default values via nullish coalescing
+- **Resource Naming**: Support custom resource names through props for flexibility
 ```typescript
-// Always extend cdk.Stack with proper typing
-export class S3BucketLoggingAthenaStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: S3BucketLoggingAthenaStackProps) {
-    super(scope, id, props);
-    // Implementation
-  }
-}
-```
-
-### Interface Design
-```typescript
-// Extend cdk.StackProps for stack properties
 export interface S3BucketLoggingAthenaStackProps extends cdk.StackProps {
-  /** Use JSDoc comments for property documentation */
   lakeformationEnabled?: boolean;
-  
-  /** Provide default values via nullish coalescing */
   logRetention?: cdk.Duration;
+  bucketName?: string;
 }
-```
 
-### Property Handling
-```typescript
-// Use nullish coalescing for default values
 const lakeformationEnabled = props?.lakeformationEnabled ?? false;
 const logRetention = props?.logRetention ?? cdk.Duration.days(30);
 ```
 
-### Resource Configuration
+## Implementation Patterns
+
+### AWS SDK Client Initialization
+- **Module Level**: Initialize AWS SDK clients at module level for reuse
+- **Default Configuration**: Use default client configuration unless specific settings needed
 ```typescript
-// Use descriptive logical IDs for resources
-const loggingBucket = new s3.Bucket(this, 'LoggingBucket', {
-  // Always specify security configurations
-  encryption: s3.BucketEncryption.S3_MANAGED,
-  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-  enforceSSL: true,
-});
+const s3 = new S3Client();
+const cloudtrail = new CloudTrailClient();
+```
+
+### Environment Variable Handling
+- **Required Variables**: Use non-null assertion for required environment variables
+- **Optional Variables**: Handle optional environment variables with conditional logic
+```typescript
+const LOGGING_BUCKET = process.env.LOGGING_BUCKET;
+const TAG_KEY = process.env.TAG_KEY!;  // Required
+const TRAIL_ARN = process.env.TRAIL_ARN;  // Optional
+```
+
+### Conditional Resource Creation
+- **Feature Flags**: Use boolean flags to conditionally create resources
+- **Resource Dependencies**: Properly handle dependencies when resources are conditionally created
+```typescript
+if (lakeformationEnabled) {
+  trail = new cloudtrail.Trail(this, 'LakeFormationTrail', {
+    bucket: loggingBucket,
+    s3KeyPrefix: 'trails-lakeformation'
+  });
+}
+```
+
+### Async/Await Patterns
+- **Consistent Usage**: Always use async/await for asynchronous operations
+- **Error Boundaries**: Wrap async operations in try-catch blocks
+- **Sequential Operations**: Use await for operations that must complete sequentially
+```typescript
+const status = await cloudtrail.send(new GetTrailStatusCommand({ Name: TRAIL_ARN }));
+const isLogging = status.IsLogging;
 ```
 
 ## Security Best Practices
 
-### S3 Security Standards
-- **Encryption**: Always enable S3 server-side encryption
-- **Public Access**: Block all public access by default
-- **SSL**: Enforce SSL for all bucket operations
-- **Bucket Policies**: Use least privilege principle with specific conditions
-
 ### IAM Policy Patterns
+- **Least Privilege**: Grant minimal required permissions
+- **Resource-Specific**: Use specific resource ARNs when possible
+- **Condition-Based**: Apply conditions for additional security constraints
 ```typescript
-// Use specific actions and resources
-tagHandler.addToRolePolicy(new iam.PolicyStatement({
-  effect: iam.Effect.ALLOW,
-  actions: ['s3:GetBucketLogging', 's3:PutBucketLogging'],
-  resources: ['*'] // Only when necessary
-}));
-```
-
-### Service Principal Access
-```typescript
-// Always include account conditions for service principals
 loggingBucket.addToResourcePolicy(new iam.PolicyStatement({
   sid: 'S3ServerAccessLogsPolicy',
   effect: iam.Effect.ALLOW,
@@ -98,43 +124,26 @@ loggingBucket.addToResourcePolicy(new iam.PolicyStatement({
 }));
 ```
 
-## Lambda Development Standards
-
-### Inline Code Pattern
+### S3 Security Configuration
+- **Encryption**: Always enable S3 encryption (minimum S3_MANAGED)
+- **Public Access**: Block all public access by default
+- **SSL Enforcement**: Require SSL for all bucket operations
 ```typescript
-// Use inline code for simple Lambda functions
-const tagHandler = new lambda.Function(this, 'S3TagHandler', {
-  runtime: lambda.Runtime.NODEJS_18_X,
-  handler: 'index.handler',
-  environment: {
-    LOGGING_BUCKET: loggingBucket.bucketName
-  },
-  code: lambda.Code.fromInline(`
-    // Inline implementation
-  `)
+const loggingBucket = new s3.Bucket(this, 'LoggingBucket', {
+  encryption: s3.BucketEncryption.S3_MANAGED,
+  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+  enforceSSL: true
 });
-```
-
-### Environment Variables
-- **Naming**: Use UPPER_CASE for environment variable names
-- **References**: Pass CDK resource references as environment variables
-- **Validation**: Always validate environment variables in Lambda code
-
-### Error Handling
-```javascript
-// Always include comprehensive error handling
-try {
-  // AWS SDK operations
-} catch (error) {
-  console.error('Error handling bucket logging:', error);
-}
 ```
 
 ## Testing Configuration
 
-### Jest Setup Pattern
+### Jest Setup
+- **Test Environment**: Use Node.js environment for CDK and Lambda testing
+- **Test Location**: Place tests in dedicated `test/` directory
+- **File Patterns**: Use `*.test.ts` pattern for test files
+- **TypeScript Integration**: Use ts-jest for TypeScript test compilation
 ```javascript
-// Standard Jest configuration for CDK projects
 module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/test'],
@@ -145,98 +154,34 @@ module.exports = {
 };
 ```
 
-### Test Organization
-- **Location**: Place tests in `test/` directory
-- **Naming**: Use `.test.ts` suffix for test files
-- **Environment**: Use Node.js test environment for CDK tests
-
-## Configuration Management
-
-### CDK Configuration
-- **App Entry**: Use ts-node with TypeScript preference
-- **Feature Flags**: Enable latest CDK features for best practices
-- **Watch Mode**: Configure file watching for development efficiency
-
-### Package Management
-- **Lock Files**: Always commit package-lock.json
-- **Versions**: Pin CDK versions for consistency
-- **Scripts**: Provide standard npm scripts (build, watch, test, cdk)
-
 ## Documentation Standards
 
 ### Code Comments
+- **Minimal Comments**: Write self-documenting code, use comments sparingly
+- **Complex Logic**: Comment complex business logic and AWS service interactions
+- **Configuration**: Document configuration options and their impacts
+
+### Interface Documentation
+- **JSDoc Comments**: Use JSDoc for interface and complex function documentation
+- **Parameter Descriptions**: Document all interface properties with clear descriptions
 ```typescript
-/** Use JSDoc for interface and class documentation */
 export interface S3BucketLoggingAthenaStackProps extends cdk.StackProps {
   /** Enable CloudTrail integration for Lake Formation correlation */
   lakeformationEnabled?: boolean;
+  
+  /** Duration to retain log files before automatic deletion */
+  logRetention?: cdk.Duration;
 }
 ```
 
-### Inline Documentation
-```typescript
-// Use single-line comments for implementation details
-const lakeformationEnabled = props?.lakeformationEnabled ?? false;
-```
+## Performance Considerations
 
-### README Structure
-- **Purpose**: Clear project purpose and value proposition
-- **Architecture**: Visual diagrams and component descriptions
-- **Setup**: Step-by-step deployment instructions
-- **Usage**: Example queries and configuration options
+### Resource Optimization
+- **Lifecycle Policies**: Implement automatic cleanup for cost optimization
+- **Partition Projection**: Use Glue partition projection for query performance
+- **Conditional Resources**: Only create resources when needed to minimize costs
 
-## Resource Lifecycle Management
-
-### Removal Policies
-```typescript
-// Provide configurable removal policies
-const bucketRemovalPolicy = props?.bucketRemovalPolicy ?? cdk.RemovalPolicy.DESTROY;
-```
-
-### Lifecycle Rules
-```typescript
-// Implement automatic cleanup
-lifecycleRules: [{
-  id: 'DeleteOldLogs',
-  enabled: true,
-  expiration: logRetention
-}]
-```
-
-## Event-Driven Architecture
-
-### EventBridge Patterns
-```typescript
-// Use specific event patterns for targeted processing
-new events.Rule(this, 'S3TaggingRule', {
-  eventPattern: {
-    source: ['aws.tag'],
-    detailType: ['Tag Change on Resource'],
-    detail: {
-      service: ['s3'],
-      'changed-tag-keys': [tagKey]
-    }
-  },
-  targets: [new targets.LambdaFunction(tagHandler)]
-});
-```
-
-### Conditional Resource Creation
-```typescript
-// Use conditional logic for optional components
-if (lakeformationEnabled) {
-  // Create CloudTrail and related resources
-}
-```
-
-## Performance Optimization
-
-### Glue Table Configuration
-- **Partition Projection**: Always enable for time-series data
-- **Storage Format**: Use appropriate input/output formats
-- **SerDe Configuration**: Configure proper serialization libraries
-
-### Query Optimization
-- **Partitioning**: Implement date-based partitioning
-- **Projection**: Use partition projection for cost optimization
-- **Location Templates**: Use parameterized S3 locations
+### Lambda Efficiency
+- **Client Reuse**: Initialize AWS SDK clients outside handler function
+- **Error Handling**: Implement robust error handling to prevent function failures
+- **Resource Cleanup**: Ensure proper resource cleanup in error scenarios

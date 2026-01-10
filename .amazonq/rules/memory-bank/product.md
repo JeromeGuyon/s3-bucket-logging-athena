@@ -1,67 +1,66 @@
-# S3 Bucket Logging with Athena Analysis
+# Product Overview
 
 ## Project Purpose
-This CDK project implements automated S3 server access logging with Athena analysis to monitor how Athena queries impact S3 costs. It provides comprehensive cost monitoring and optimization insights for data lake operations.
+S3 Bucket Logging with Athena Analysis is a CDK-based infrastructure solution that implements automated S3 server access logging with integrated Athena analysis capabilities. The project enables organizations to monitor and analyze how Amazon Athena queries impact S3 costs by capturing detailed access patterns and providing SQL-based analysis tools.
+
+## Value Proposition
+- **Cost Optimization**: Identifies expensive Athena queries by analyzing S3 request patterns and data transfer volumes
+- **Automated Setup**: Event-driven architecture automatically enables logging when buckets are tagged, eliminating manual configuration
+- **Comprehensive Analysis**: Correlates Athena query IDs with S3 operations to provide detailed cost breakdowns
+- **Lake Formation Integration**: Optional CloudTrail integration for environments using Lake Formation data governance
 
 ## Key Features
 
 ### Automated Logging Infrastructure
-- **Event-Driven Configuration**: EventBridge automatically detects `analyse-logging=true` tag and enables S3 server access logging
-- **Partitioned Log Format**: Optimized log storage with partitioned format for better query performance
-- **Automatic Cleanup**: Configurable lifecycle policy automatically deletes old log files (default: 30 days)
+- **Event-Driven Configuration**: EventBridge automatically detects bucket tagging changes and enables S3 server access logging
+- **Partitioned Storage**: Implements partitioned log storage format for optimal query performance
+- **Lifecycle Management**: Configurable automatic cleanup of old log files (default: 30 days retention)
 
-### Cost Analysis & Monitoring
-- **S3 Request Tracking**: Captures all S3 requests (GET, LIST operations) for detailed cost analysis
-- **Athena Query Correlation**: Identifies expensive Athena queries by analyzing S3 request patterns
-- **Performance Insights**: Provides breakdown of GET vs LIST operations per query
+### Data Analysis Capabilities
+- **Athena Integration**: Pre-configured Glue database and tables with partition projection for efficient querying
+- **Cost Monitoring**: SQL queries to identify top expensive queries by S3 request volume and data transfer
+- **Performance Analysis**: Breakdown of GET vs LIST operations to understand query efficiency patterns
 
-### Lake Formation Integration
-- **CloudTrail Integration**: Optional correlation between CloudTrail events and S3 access logs
-- **Query ID Tracking**: Links Athena query IDs with S3 operations for comprehensive analysis
-- **Enhanced Correlation**: Detailed analysis of Lake Formation data access patterns
+### Lake Formation Support
+- **CloudTrail Integration**: Optional CloudTrail logging for Lake Formation data access events
+- **Query Correlation**: Advanced SQL queries that correlate Athena query IDs with S3 access patterns
+- **Comprehensive Insights**: Enhanced analysis combining CloudTrail events with S3 access logs
 
-### Pre-configured Analytics
-- **Glue Database**: Ready-to-use database with partition projection for optimal performance
-- **Athena Tables**: Pre-configured tables for S3 access logs and CloudTrail events
-- **Sample Queries**: Production-ready SQL queries for cost analysis and optimization
+### Operational Features
+- **Flexible Configuration**: Customizable bucket names, retention periods, and table names
+- **Security Best Practices**: Enforced SSL, blocked public access, and proper IAM policies
+- **Multi-Region Support**: Configurable for different AWS regions with appropriate partition projection
 
 ## Target Users
 
+### Cloud Cost Engineers
+- Monitor and optimize Athena-related S3 costs
+- Identify inefficient query patterns causing excessive S3 operations
+- Generate cost reports and recommendations for query optimization
+
 ### Data Engineers
-- Monitor and optimize data lake costs
-- Analyze Athena query performance impact on S3
-- Implement cost-effective data access patterns
+- Analyze data access patterns for performance optimization
+- Understand the relationship between Athena queries and underlying S3 operations
+- Optimize data lake architectures based on access patterns
 
 ### DevOps Teams
-- Automate logging infrastructure deployment
-- Monitor S3 access patterns across environments
-- Implement cost governance for data operations
-
-### Data Analysts
-- Understand query cost implications
-- Optimize data access patterns
-- Generate cost reports and insights
+- Implement automated logging infrastructure for data governance
+- Set up monitoring for data access compliance in Lake Formation environments
+- Manage infrastructure as code for logging and analysis capabilities
 
 ## Use Cases
 
-### Cost Optimization
-- Identify expensive Athena queries by S3 request volume
-- Analyze GET vs LIST operation ratios
-- Optimize partition pruning and query patterns
+### Cost Analysis and Optimization
+- Identify Athena queries generating high S3 request volumes
+- Analyze data transfer patterns to optimize storage classes
+- Monitor the cost impact of different query patterns and data formats
 
 ### Performance Monitoring
-- Track S3 request patterns over time
-- Correlate query performance with S3 operations
-- Monitor data access efficiency
+- Track query efficiency by analyzing GET vs LIST operation ratios
+- Identify queries that scan excessive amounts of data
+- Optimize partition strategies based on access patterns
 
-### Compliance & Auditing
-- Track all S3 access operations
-- Correlate data access with user activities
-- Generate audit reports for data governance
-
-## Value Proposition
-- **Automated Setup**: Zero-configuration logging activation via S3 bucket tagging
-- **Cost Visibility**: Clear insights into how Athena queries drive S3 costs
-- **Performance Optimization**: Data-driven approach to query and storage optimization
-- **Scalable Architecture**: Handles high-volume logging with partition projection
-- **Production Ready**: Includes security best practices and lifecycle management
+### Compliance and Governance
+- Maintain audit trails of data access in Lake Formation environments
+- Correlate user activities with data access patterns
+- Generate compliance reports for data governance requirements

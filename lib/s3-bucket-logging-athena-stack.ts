@@ -178,8 +178,9 @@ export class S3BucketLoggingAthenaStack extends cdk.Stack {
     });
 
     // Create CloudTrail for Lake Formation events (only if enabled)
+    let trail: cloudtrail.Trail | undefined;
     if (lakeformationEnabled) {
-      new cloudtrail.Trail(this, 'LakeFormationTrail', {
+      trail = new cloudtrail.Trail(this, 'LakeFormationTrail', {
         bucket: loggingBucket,
         s3KeyPrefix: 'trails-lakeformation',
         isMultiRegionTrail: false,
@@ -254,7 +255,8 @@ export class S3BucketLoggingAthenaStack extends cdk.Stack {
       entry: path.join(__dirname, 'lambda', 's3-tag-handler.ts'),
       environment: {
         LOGGING_BUCKET: loggingBucket.bucketName,
-        TAG_KEY: tagKey
+        TAG_KEY: tagKey,
+        ...(trail && { TRAIL_ARN: trail.trailArn })
       }
     });
 
@@ -264,6 +266,22 @@ export class S3BucketLoggingAthenaStack extends cdk.Stack {
       actions: ['s3:GetBucketLogging', 's3:PutBucketLogging'],
       resources: ['*']
     }));
+
+    // Grant CloudTrail permissions to Lambda (only if enabled)
+    if (lakeformationEnabled && trail) {
+      tagHandler.addToRolePolicy(new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['cloudtrail:GetTrailStatus', 'cloudtrail:StartLogging', 'cloudtrail:StopLogging'],
+        resources: [trail.trailArn]
+      }));
+      
+      // Grant Resource Groups permissions to check for other tagged buckets
+      tagHandler.addToRolePolicy(new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['tag:GetResources'],
+        resources: ['*']
+      }));
+    }
 
     // EventBridge rule to detect S3 bucket tagging
     new events.Rule(this, 'S3TaggingRule', {

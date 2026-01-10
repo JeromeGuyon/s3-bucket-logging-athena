@@ -13,6 +13,7 @@ This CDK project implements S3 server access logging with automated Athena analy
 ## Features
 
 - **Automated Logging**: EventBridge detects `analyse-logging=true` tag and enables S3 server access logging with partitioned format
+- **CloudTrail Management**: Automatically enables/disables CloudTrail logging based on bucket tagging (Lake Formation mode)
 - **S3 Access Logs**: Captures all S3 requests for cost analysis with 2-4 hour delivery delay
 - **Athena Integration**: Pre-configured Glue tables for querying access logs and CloudTrail events
 - **Cost Monitoring**: Identifies expensive Athena queries by S3 request patterns
@@ -32,6 +33,7 @@ graph TB
     
     %% Lambda Configuration
     Lambda --> |4. Enable S3 logging<br/>with partitioned format| S3Bucket
+    Lambda --> |4b. Enable CloudTrail<br/>logging (if Lake Formation)| CloudTrail
     S3Bucket --> |5. Access logs 2-4h delay| LoggingBucket[🗄️ Logging Bucket<br/>S3 Access Logs]
     
     %% Lake Formation (Optional)
@@ -68,6 +70,8 @@ graph TB
 
 ### Architecture Overview
 
+![](./doc/archi.drawio.png)
+
 #### Core Components
 
 1. **Event-Driven Automation**
@@ -99,15 +103,21 @@ When `lakeformationEnabled=true`:
   - `mybucket_logs`: S3 access logs with partition projection
   - `cloudtrail_logs`: CloudTrail events for Lake Formation correlation (optional)
 - **EventBridge Rule**: Detects S3 bucket tagging events
-- **Lambda Function**: Manages logging configuration based on tags
-- **CloudTrail**: Captures Lake Formation events for query correlation (optional)
+- **Lambda Function**: Manages S3 logging and CloudTrail configuration based on tags
+- **CloudTrail**: Captures Lake Formation events for query correlation (optional, managed automatically)
 
 ### Data Flow
 1. Tag S3 bucket with `analyse-logging=true`
 2. EventBridge triggers Lambda function
 3. Lambda enables S3 server access logging with partitioned format
-4. S3 delivers access logs to logging bucket (2-4 hour delay)
-5. Athena queries logs using Glue tables with partition projection
+4. **Lambda enables CloudTrail logging** (if Lake Formation enabled and not already logging)
+5. S3 delivers access logs to logging bucket (2-4 hour delay)
+6. Athena queries logs using Glue tables with partition projection
+
+### CloudTrail Management
+When Lake Formation is enabled, the Lambda function automatically manages CloudTrail logging:
+- **Tagged bucket**: Enables CloudTrail logging if not already active
+- **Untagged bucket**: Disables CloudTrail logging only if no other buckets have the analysis tag (uses Resource Groups API to check)
 
 ## Quick Start
 
@@ -243,6 +253,11 @@ The Lake Formation query provides detailed breakdown of S3 operations per Athena
 - **Check timing**: Logs have a 2-4 hour delivery delay
 - **Verify tagging**: Ensure bucket has `analyse-logging=true` tag
 - **Check permissions**: Lambda needs S3 logging permissions
+
+### CloudTrail Issues (Lake Formation mode)
+- **Trail not starting**: Verify Lambda has CloudTrail permissions
+- **Trail not stopping**: Check if other buckets still have the analysis tag
+- **Missing correlation**: Ensure CloudTrail is logging to the same bucket
 
 ### Query Performance Issues
 - Use partition projection for better performance
