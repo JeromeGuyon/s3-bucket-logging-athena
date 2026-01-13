@@ -33,7 +33,7 @@ graph TB
     
     %% Lambda Configuration
     Lambda --> |4. Enable S3 logging<br/>with partitioned format| S3Bucket
-    Lambda --> |4b. Enable CloudTrail<br/>logging (if Lake Formation)| CloudTrail
+    Lambda --> |4b. Enable CloudTrail if Lake Formation| CloudTrail
     S3Bucket --> |5. Access logs 2-4h delay| LoggingBucket[🗄️ Logging Bucket<br/>S3 Access Logs]
     
     %% Lake Formation (Optional)
