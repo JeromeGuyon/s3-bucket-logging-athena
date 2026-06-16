@@ -7,6 +7,7 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 
 export interface S3BucketLoggingAthenaStackProps extends cdk.StackProps {
@@ -252,6 +253,8 @@ export class S3BucketLoggingAthenaStack extends cdk.Stack {
 
     // Lambda function to handle S3 tagging events
     const tagHandler = new NodejsFunction(this, 'S3TagHandler', {
+      architecture: lambda.Architecture.ARM_64,
+      runtime: lambda.Runtime.NODEJS_LATEST,
       entry: path.join(__dirname, 'lambda', 's3-tag-handler.ts'),
       environment: {
         LOGGING_BUCKET: loggingBucket.bucketName,
