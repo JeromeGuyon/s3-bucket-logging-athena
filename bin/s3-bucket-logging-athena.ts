@@ -6,3 +6,6 @@ const app = new cdk.App();
 new S3BucketLoggingAthenaStack(app, 'S3BucketLoggingAthenaStack', {
   lakeformationEnabled: true,
 });
+
+
+cdk.Tags.of(app).add('source', 'https://github.com/JeromeGuyon/s3-bucket-logging-athena');
